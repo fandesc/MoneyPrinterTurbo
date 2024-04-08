@@ -2,12 +2,11 @@ import logging
 import re
 import json
 from typing import List
-import g4f
 from loguru import logger
 from openai import OpenAI
 from openai import AzureOpenAI
+import google.generativeai as genai
 from app.config import config
-
 
 def _generate_response(prompt: str) -> str:
     content = ""
@@ -17,7 +16,7 @@ def _generate_response(prompt: str) -> str:
         model_name = config.app.get("g4f_model_name", "")
         if not model_name:
             model_name = "gpt-3.5-turbo-16k-0613"
-
+        import g4f
         content = g4f.ChatCompletion.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
@@ -28,6 +27,13 @@ def _generate_response(prompt: str) -> str:
             api_key = config.app.get("moonshot_api_key")
             model_name = config.app.get("moonshot_model_name")
             base_url = "https://api.moonshot.cn/v1"
+        elif llm_provider == "ollama":
+            # api_key = config.app.get("openai_api_key")
+            api_key = "ollama" # any string works but you are required to have one
+            model_name = config.app.get("ollama_model_name")
+            base_url = config.app.get("ollama_base_url", "")
+            if not base_url:
+                base_url = "http://localhost:11434/v1"
         elif llm_provider == "openai":
             api_key = config.app.get("openai_api_key")
             model_name = config.app.get("openai_model_name")
@@ -43,6 +49,14 @@ def _generate_response(prompt: str) -> str:
             model_name = config.app.get("azure_model_name")
             base_url = config.app.get("azure_base_url", "")
             api_version = config.app.get("azure_api_version", "2024-02-15-preview")
+        elif llm_provider == "gemini":
+            api_key = config.app.get("gemini_api_key")
+            model_name = config.app.get("gemini_model_name")
+            base_url = "***"
+        elif llm_provider == "qwen":
+            api_key = config.app.get("qwen_api_key")
+            model_name = config.app.get("qwen_model_name")
+            base_url = "***"
         else:
             raise ValueError("llm_provider is not set, please set it in the config.toml file.")
 
@@ -52,6 +66,54 @@ def _generate_response(prompt: str) -> str:
             raise ValueError(f"{llm_provider}: model_name is not set, please set it in the config.toml file.")
         if not base_url:
             raise ValueError(f"{llm_provider}: base_url is not set, please set it in the config.toml file.")
+
+        if llm_provider == "qwen":
+            import dashscope
+            dashscope.api_key = api_key
+            response = dashscope.Generation.call(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            content = response["output"]["text"]
+            return content.replace("\n", "")
+
+        if llm_provider == "gemini":
+            genai.configure(api_key=api_key)
+
+            generation_config = {
+            "temperature": 0.5,
+            "top_p": 1,
+            "top_k": 1,
+            "max_output_tokens": 2048,
+            }
+
+            safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_ONLY_HIGH"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_ONLY_HIGH"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_ONLY_HIGH"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_ONLY_HIGH"
+            },
+            ]
+
+            model = genai.GenerativeModel(model_name=model_name,
+                                        generation_config=generation_config,
+                                        safety_settings=safety_settings)
+
+            convo = model.start_chat(history=[])
+
+            convo.send_message(prompt)
+            return convo.last.text
 
         if llm_provider == "azure":
             client = AzureOpenAI(
@@ -156,6 +218,8 @@ Generate {amount} search terms for stock videos, depending on the subject of a v
 
 ### Video Script
 {video_script}
+
+Please note that you must use English for generating video search terms; Chinese is not accepted.
 """.strip()
 
     logger.info(f"subject: {video_subject}")
