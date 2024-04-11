@@ -290,7 +290,7 @@ with middle_panel:
                                       )
         params.video_aspect = VideoAspect(video_aspect_ratios[selected_index][1])
 
-        params.video_clip_duration = st.selectbox(tr("Clip Duration"), options=[2, 3, 4, 5, 6], index=1)
+        params.video_clip_duration = st.selectbox(tr("Clip Duration"), options=[2, 3, 4, 5, 6,8,10,12], index=1)
         params.video_count = st.selectbox(tr("Number of Videos Generated Simultaneously"), options=[1, 2, 3, 4, 5],
                                           index=0)
     with st.container(border=True):
@@ -372,7 +372,7 @@ with right_panel:
 
         font_cols = st.columns([0.3, 0.7])
         with font_cols[0]:
-            saved_text_fore_color = config.ui.get("text_fore_color", "#FFFFFF")
+            saved_text_fore_color = config.ui.get("text_fore_color", "#FBEA70")
             params.text_fore_color = st.color_picker(tr("Font Color"), saved_text_fore_color)
             config.ui['text_fore_color'] = params.text_fore_color
 
@@ -385,7 +385,7 @@ with right_panel:
         with stroke_cols[0]:
             params.stroke_color = st.color_picker(tr("Stroke Color"), "#000000")
         with stroke_cols[1]:
-            params.stroke_width = st.slider(tr("Stroke Width"), 0.0, 10.0, 1.5)
+            params.stroke_width = st.slider(tr("Stroke Width"), 0.0, 10.0, 0.5)
 
 start_button = st.button(tr("Generate Video"), use_container_width=True, type="primary")
 if start_button:
